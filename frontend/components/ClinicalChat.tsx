@@ -7,13 +7,14 @@ import {
     AlertTriangle, Sparkles, ChevronRight, Zap,
     TrendingUp, Activity, FileSearch, BarChart3,
     Send, RotateCcw, Copy, CheckCheck, Code2,
-    UploadCloud, Info, Mic
+    UploadCloud, Info, Mic, Download
 } from "lucide-react";
 import { AgGridReact } from "ag-grid-react";
 import { ModuleRegistry, AllCommunityModule } from "ag-grid-community";
 import { motion, AnimatePresence } from "framer-motion";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
+import { downloadCSV } from "../utils/csvExport"; // Adjust path if necessary
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -418,8 +419,8 @@ export default function ClinicalChat() {
                     <button
                         onClick={toggleVoice}
                         className={`p-2.5 rounded-full transition-all duration-300 flex-shrink-0 ${isListening
-                                ? "bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]"
-                                : "text-[#64748b] hover:text-[#00d4ff] hover:bg-[#00d4ff]/10"
+                            ? "bg-red-500 text-white animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]"
+                            : "text-[#64748b] hover:text-[#00d4ff] hover:bg-[#00d4ff]/10"
                             }`}
                         title={isListening ? "Stop listening" : "Start Voice Query"}
                     >
@@ -496,7 +497,19 @@ export default function ClinicalChat() {
                         className="space-y-4">
                         {result.data.length > 0 ? (
                             <>
-                                <ResultSummary data={result.data} mode={queryMode} />
+                                <div className="flex items-center justify-between gap-4 flex-wrap">
+                                    <ResultSummary data={result.data} mode={queryMode} />
+
+                                    <motion.button
+                                        whileHover={{ scale: 1.02 }}
+                                        whileTap={{ scale: 0.98 }}
+                                        onClick={() => downloadCSV(result.data, 'medsentinel_query')}
+                                        className="flex items-center gap-2 px-4 py-2 bg-[#111827] border border-[rgba(255,255,255,0.06)] rounded-xl text-xs font-bold text-[#f1f5f9] hover:border-[#00d4ff] hover:text-[#00d4ff] transition-all shadow-sm"
+                                    >
+                                        <Download className="h-4 w-4" />
+                                        Download CSV
+                                    </motion.button>
+                                </div>
                                 <div
                                     className="ag-theme-alpine-dark w-full rounded-2xl overflow-hidden border border-[rgba(255,255,255,0.06)]"
                                     style={{ height: Math.min(460, 80 + result.data.length * 44) }}

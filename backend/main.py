@@ -25,15 +25,22 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Setup CORS (Allows your Next.js frontend to communicate with this backend)
-origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+# Setup CORS (Allows your Next.js frontend to communicate with this backend securely)
+origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+origins = [origin.strip() for origin in origins_raw.split(",") if origin.strip()]
+
+# Bulletproof local development fallbacks
+if "http://localhost:3000" not in origins:
+    origins.append("http://localhost:3000")
+if "http://127.0.0.1:3000" not in origins:
+    origins.append("http://127.0.0.1:3000")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"], # Allows POST, GET, OPTIONS, PUT, DELETE
+    allow_headers=["*"], # Allows all custom frontend headers
 )
 
 @app.get("/")
@@ -80,7 +87,7 @@ class DatasetQueryRequest(BaseModel):
     rows: List[List[Any]]
 
 
-# ─── Existing Routes (unchanged) ─────────────────────────────────────────────
+# ─── Existing Routes ─────────────────────────────────────────────────────────
 
 @app.post("/api/detect")
 def run_full_detection_pipeline(db: Session = Depends(database.get_db)):
@@ -170,22 +177,6 @@ async def query_uploaded_dataset(request: DatasetQueryRequest):
     """
     NEW ENDPOINT — Answers natural language questions about a user-uploaded
     dataset using Groq + Pandas (NOT SQL, NOT PostgreSQL).
-
-    The frontend sends:
-      - question: the user's NL query
-      - columns:  list of column names from the uploaded CSV
-      - rows:     all data rows as arrays
-
-    Groq LLaMA generates safe Pandas code which is executed in a sandboxed
-    environment and the result is returned as JSON records.
-
-    This supports arbitrarily complex queries including:
-      - Multi-column filtering with AND/OR conditions
-      - GroupBy aggregations (mean, max, count, etc.)
-      - Correlation analysis between columns
-      - Missing value handling (dropna / fillna)
-      - String matching (contains, isin, etc.)
-      - Sorting and ranking
     """
     logger.info(f"[Dataset NL Query] question='{request.question[:80]}...' "
                 f"columns={request.columns} rows={len(request.rows)}")

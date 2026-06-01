@@ -1,23 +1,26 @@
-﻿import re, json, traceback
+﻿import re
+import json
+import traceback
 import pandas as pd
 import numpy as np
-import utils, groq_client
+import utils
+import groq_client
 
 logger = utils.setup_logger("dataset_query")
 
 SAFE_GLOBALS = {
     "__builtins__": {
-        "len":len,"range":range,"enumerate":enumerate,"zip":zip,
-        "list":list,"dict":dict,"str":str,"int":int,"float":float,
-        "bool":bool,"round":round,"abs":abs,"min":min,"max":max,
-        "sorted":sorted,"print":print,"isinstance":isinstance,
-        "any":any,"all":all,"sum":sum,
+        "len": len, "range": range, "enumerate": enumerate, "zip": zip,
+        "list": list, "dict": dict, "str": str, "int": int, "float": float,
+        "bool": bool, "round": round, "abs": abs, "min": min, "max": max,
+        "sorted": sorted, "print": print, "isinstance": isinstance,
+        "any": any, "all": all, "sum": sum,
     },
     "pd": pd, "np": np,
 }
 
 def build_system_prompt(columns, dtypes, sample_rows, row_count):
-    col_info = "\n".join([f"  - {col} ({dtypes.get(col,'object')})" for col in columns])
+    col_info = "\n".join([f"  - {col} ({dtypes.get(col, 'object')})" for col in columns])
     sample_str = json.dumps(sample_rows[:3], indent=2, default=str)
     return f"""You are a senior Python/Pandas clinical data analyst.
 
@@ -47,6 +50,7 @@ CRITICAL RULES — FOLLOW EXACTLY:
 9. If result would be a dict or scalar, wrap it in pd.DataFrame([dict]) or pd.DataFrame({{'value':[scalar]}}).
 10. No explanations — output ONLY raw Python code. No markdown. No backticks.
 11. Max 20 lines.
+12. CRITICAL PANDAS SYNTAX: When combining multiple boolean conditions, you MUST wrap every individual condition in parentheses to prevent bitwise evaluation errors.
 
 EXAMPLE of correct multi-condition filter:
 abnormal = ['afib', 'svt', 'pvc']
@@ -59,25 +63,27 @@ filtered = df[
 result = filtered[['patient_id','heart_rate_bpm','rhythm','qt_interval_ms']].copy()
 """
 
-
 def clean_code_output(raw):
     code = re.sub(r"```python", "", raw, flags=re.IGNORECASE)
     code = re.sub(r"```", "", code)
     return code.strip()
 
-
 def dataframe_to_records(obj):
+    """Convert whatever `result` is into a list of dicts safely handling Numpy types."""
     if isinstance(obj, pd.DataFrame):
-        clean = obj.replace([np.inf, -np.inf], np.nan)
-        clean = clean.where(pd.notnull(clean), None)
-        return clean.to_dict(orient="records")
-    elif isinstance(obj, list):
-        return obj
-    elif isinstance(obj, dict):
-        return [obj]
+        # to_json automatically handles numpy int64, float64, and NaN values perfectly
+        json_str = obj.to_json(orient="records", date_format="iso")
+        return json.loads(json_str)
+    
+    elif isinstance(obj, (list, dict)):
+        # If the AI returned a list or dict, forcefully convert it via pandas to clean types
+        if isinstance(obj, dict):
+            obj = [obj]
+        json_str = pd.DataFrame(obj).to_json(orient="records", date_format="iso")
+        return json.loads(json_str)
+        
     else:
         return [{"result": str(obj)}]
-
 
 def process_dataset_query(question, columns, rows):
     if not question or not question.strip():
