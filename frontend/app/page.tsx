@@ -383,7 +383,7 @@ export default function LandingPage() {
             <section className="py-24 bg-surface relative z-20 border-b border-border overflow-hidden">
                 <div className="max-w-7xl mx-auto px-4 space-y-12 relative z-10">
                     <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center space-y-4">
-                        <h2 className="text-3xl md:text-5xl font-bold text-accent">Real-Time Clinical Intelligence</h2>
+                        <h2 className="text-3xl md:text-5xl font-bold text-accent"> Clinical Intelligence</h2>
                         <p className="text-muted max-w-2xl mx-auto text-lg">See anomalies the moment they appear in your EHR data. Our engine processes streaming telemetry instantly.</p>
                     </motion.div>
 
@@ -528,9 +528,9 @@ export default function LandingPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[
                             { icon: UploadCloud, title: "Smart Upload", desc: "Drag and drop CSV or FHIR datasets. Secure vault encryption happens client-side." },
+                            { icon: AlertTriangle, title: "Isolation Forest Detection", desc: "Unsupervised ML hunts across multiple variables simultaneously to find hidden threats." },
                             { icon: Sparkles, title: "Auto Data Cleaning", desc: "Automatically formats timestamps, standardizes units, and drops duplicate MRNs." },
                             { icon: Database, title: "Missing Value Imputation", desc: "Uses KNN and clinical logic to fill in the blanks without corrupting your dataset." },
-                            { icon: AlertTriangle, title: "Isolation Forest Detection", desc: "Unsupervised ML hunts across multiple variables simultaneously to find hidden threats." },
                             { icon: BotMessageSquare, title: "AI Clinical Explanations", desc: "Groq LLaMA models act as your CMO, explaining exactly WHY a record was flagged." },
                             { icon: FileText, title: "PDF Report Export", desc: "Generate instant, board-ready clinical compliance reports with a single click." }
                         ].map((feature, i) => {
@@ -670,8 +670,8 @@ export default function LandingPage() {
                         {[
                             { id: 1, title: "Upload", desc: "CSV, Excel, JSON, FHIR format support", icon: UploadCloud },
                             { id: 2, title: "Schema Match", desc: "Auto-detect 50+ medical field types", icon: FileSearch },
-                            { id: 3, title: "Cleanse", desc: "KNN imputation + duplicate removal", icon: Sparkles },
-                            { id: 4, title: "Score", desc: "Isolation Forest ML · 0-100 threat score", icon: Activity },
+                            { id: 3, title: "Score", desc: "Isolation Forest ML · 0-100 threat score", icon: Activity },
+                            { id: 4, title: "Cleanse", desc: "KNN imputation + duplicate removal", icon: Sparkles },
                             { id: 5, title: "Explain", desc: "Groq LLaMA medical reasoning engine", icon: BotMessageSquare },
                             { id: 6, title: "Export", desc: "PDF report + raw JSON export", icon: FileText }
                         ].map((step, i) => (

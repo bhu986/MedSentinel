@@ -569,7 +569,106 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ════════════════ CLEANING ════════════════ */}
+           
+            {/* ════════════════ ANOMALIES ════════════════ */}
+            {activeTab === 'anomalies' && (
+              <div className="space-y-6">
+                <div className="bg-[#111827] border border-[rgba(255,255,255,0.06)] p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-[#f1f5f9] flex items-center gap-2">
+                      <Zap className="h-5 w-5 text-[#00d4ff]" /> Isolation Forest ML Engine
+                    </h3>
+                    <p className="text-[#64748b] mt-1 text-sm">Unsupervised multivariate anomaly detection across all numeric features.</p>
+                    {stats && stats.totalMissing > 0 && (
+                      <p className="text-[#f59e0b] text-xs mt-2 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Clean missing values first for best results.
+                      </p>
+                    )}
+                  </div>
+                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                    onClick={runDetection} disabled={isDetecting}
+                    className="flex items-center space-x-2 bg-[#00d4ff] hover:bg-[#00d4ff]/80 text-[#0a0f1e] px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50 shadow-[0_0_20px_rgba(0,212,255,0.3)]">
+                    {isDetecting ? <Activity className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
+                    <span>{isDetecting ? "Scanning…" : "Run AI Detection"}</span>
+                  </motion.button>
+                </div>
+
+                {/* Anomaly summary charts */}
+                {anomalyStats && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatCard label="Anomalies Flagged" value={anomalyStats.flagged} sub="Records" icon={AlertTriangle} color="#ef4444" />
+                    <StatCard label="Critical (≥70)" value={anomalyStats.critical} sub="High threat" icon={Zap} color="#ef4444" />
+                    <StatCard label="Moderate (40–70)" value={anomalyStats.moderate} sub="Review needed" icon={TrendingUp} color="#f59e0b" />
+                    <StatCard label="Safe (<40)" value={anomalyStats.safe} sub="Clean records" icon={CheckCircle} color="#10b981" />
+                  </div>
+                )}
+
+                {anomalyStats && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Pie */}
+                    <div className="bg-[#111827] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6">
+                      <h4 className="text-sm font-bold text-[#f1f5f9] mb-4">Threat Level Distribution</h4>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <RechartsPieChart>
+                          <Pie data={anomalyStats.pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>
+                            {anomalyStats.pieData.map((_, i) => (
+                              <Cell key={i} fill={['#10b981', '#f59e0b', '#ef4444'][i]} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip content={<CustomTooltip />} />
+                          <Legend formatter={(v) => <span className="text-[#f1f5f9] text-xs">{v}</span>} />
+                        </RechartsPieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {/* Score histogram */}
+                    <div className="bg-[#111827] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6">
+                      <h4 className="text-sm font-bold text-[#f1f5f9] mb-4">Threat Score Distribution</h4>
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={anomalyStats.scoreHistData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                          <XAxis dataKey="bucket" fontSize={9} stroke="#64748b" />
+                          <YAxis fontSize={10} stroke="#64748b" />
+                          <RechartsTooltip content={<CustomTooltip />} />
+                          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                            {anomalyStats.scoreHistData.map((entry, i) => (
+                              <Cell key={i} fill={entry.bucket >= '70' ? '#ef4444' : entry.bucket >= '40' ? '#f59e0b' : '#00d4ff'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {anomalyData && (
+                  <div className="bg-[#111827] border border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden">
+                    <div className="p-5 border-b border-[rgba(255,255,255,0.06)] flex items-center gap-3">
+                      <AlertTriangle className="h-5 w-5 text-[#ef4444]" />
+                      <h4 className="font-bold text-[#f1f5f9]">Flagged Records</h4>
+                      <span className="ml-auto text-xs text-[#64748b] font-mono">{anomalyData.filter(r => r.is_anomaly).length} / {anomalyData.length} flagged</span>
+                    </div>
+                    <div className="ag-theme-alpine-dark w-full h-[420px]">
+                      <AgGridReact
+                        rowData={anomalyData}
+                        columnDefs={Object.keys(anomalyData[0]).map(key => ({
+                          field: key, sortable: true, filter: true,
+                          cellStyle: (params: any) => {
+                            if (key === 'threat_score' && params.value > 60) return { color: '#ef4444', fontWeight: 'bold' };
+                            if (key === 'threat_score' && params.value > 30) return { color: '#f59e0b' };
+                            return null;
+                          }
+                        }))}
+                        pagination paginationPageSize={12} theme="legacy"
+                        rowStyle={{ background: 'transparent' }}
+                        rowClassRules={{ 'bg-red-950/20': (p: any) => p.data.is_anomaly === true }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+ {/* ════════════════ CLEANING ════════════════ */}
             {activeTab === 'cleaning' && (() => {
               const colsWithMissing = stats?.colStats.filter(c => c.missing > 0) || [];
               return (
@@ -669,103 +768,6 @@ export default function DashboardPage() {
               );
             })()}
 
-            {/* ════════════════ ANOMALIES ════════════════ */}
-            {activeTab === 'anomalies' && (
-              <div className="space-y-6">
-                <div className="bg-[#111827] border border-[rgba(255,255,255,0.06)] p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-[#f1f5f9] flex items-center gap-2">
-                      <Zap className="h-5 w-5 text-[#00d4ff]" /> Isolation Forest ML Engine
-                    </h3>
-                    <p className="text-[#64748b] mt-1 text-sm">Unsupervised multivariate anomaly detection across all numeric features.</p>
-                    {stats && stats.totalMissing > 0 && (
-                      <p className="text-[#f59e0b] text-xs mt-2 flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3" /> Clean missing values first for best results.
-                      </p>
-                    )}
-                  </div>
-                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                    onClick={runDetection} disabled={isDetecting}
-                    className="flex items-center space-x-2 bg-[#00d4ff] hover:bg-[#00d4ff]/80 text-[#0a0f1e] px-6 py-3 rounded-xl font-bold transition-all disabled:opacity-50 shadow-[0_0_20px_rgba(0,212,255,0.3)]">
-                    {isDetecting ? <Activity className="h-5 w-5 animate-spin" /> : <Play className="h-5 w-5" />}
-                    <span>{isDetecting ? "Scanning…" : "Run AI Detection"}</span>
-                  </motion.button>
-                </div>
-
-                {/* Anomaly summary charts */}
-                {anomalyStats && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <StatCard label="Anomalies Flagged" value={anomalyStats.flagged} sub="Records" icon={AlertTriangle} color="#ef4444" />
-                    <StatCard label="Critical (≥70)" value={anomalyStats.critical} sub="High threat" icon={Zap} color="#ef4444" />
-                    <StatCard label="Moderate (40–70)" value={anomalyStats.moderate} sub="Review needed" icon={TrendingUp} color="#f59e0b" />
-                    <StatCard label="Safe (<40)" value={anomalyStats.safe} sub="Clean records" icon={CheckCircle} color="#10b981" />
-                  </div>
-                )}
-
-                {anomalyStats && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Pie */}
-                    <div className="bg-[#111827] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6">
-                      <h4 className="text-sm font-bold text-[#f1f5f9] mb-4">Threat Level Distribution</h4>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <RechartsPieChart>
-                          <Pie data={anomalyStats.pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>
-                            {anomalyStats.pieData.map((_, i) => (
-                              <Cell key={i} fill={['#10b981', '#f59e0b', '#ef4444'][i]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip content={<CustomTooltip />} />
-                          <Legend formatter={(v) => <span className="text-[#f1f5f9] text-xs">{v}</span>} />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    {/* Score histogram */}
-                    <div className="bg-[#111827] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6">
-                      <h4 className="text-sm font-bold text-[#f1f5f9] mb-4">Threat Score Distribution</h4>
-                      <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={anomalyStats.scoreHistData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                          <XAxis dataKey="bucket" fontSize={9} stroke="#64748b" />
-                          <YAxis fontSize={10} stroke="#64748b" />
-                          <RechartsTooltip content={<CustomTooltip />} />
-                          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                            {anomalyStats.scoreHistData.map((entry, i) => (
-                              <Cell key={i} fill={entry.bucket >= '70' ? '#ef4444' : entry.bucket >= '40' ? '#f59e0b' : '#00d4ff'} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                )}
-
-                {anomalyData && (
-                  <div className="bg-[#111827] border border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden">
-                    <div className="p-5 border-b border-[rgba(255,255,255,0.06)] flex items-center gap-3">
-                      <AlertTriangle className="h-5 w-5 text-[#ef4444]" />
-                      <h4 className="font-bold text-[#f1f5f9]">Flagged Records</h4>
-                      <span className="ml-auto text-xs text-[#64748b] font-mono">{anomalyData.filter(r => r.is_anomaly).length} / {anomalyData.length} flagged</span>
-                    </div>
-                    <div className="ag-theme-alpine-dark w-full h-[420px]">
-                      <AgGridReact
-                        rowData={anomalyData}
-                        columnDefs={Object.keys(anomalyData[0]).map(key => ({
-                          field: key, sortable: true, filter: true,
-                          cellStyle: (params: any) => {
-                            if (key === 'threat_score' && params.value > 60) return { color: '#ef4444', fontWeight: 'bold' };
-                            if (key === 'threat_score' && params.value > 30) return { color: '#f59e0b' };
-                            return null;
-                          }
-                        }))}
-                        pagination paginationPageSize={12} theme="legacy"
-                        rowStyle={{ background: 'transparent' }}
-                        rowClassRules={{ 'bg-red-950/20': (p: any) => p.data.is_anomaly === true }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* ════════════════ VISUALIZATIONS ════════════════ */}
             {activeTab === 'visualizations' && (
@@ -985,7 +987,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ════════════════ AI INSIGHTS ════════════════ */}
+            {/* ════════════════  ════════MedQuery AI ════════ */}
             {activeTab === 'insights' && (
               <div className="animate-in fade-in duration-500">
                 <ClinicalChat />
